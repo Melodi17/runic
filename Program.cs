@@ -75,7 +75,7 @@ class Program
             // Save the output image
             try
             {
-                outputImage.Save(outputFileName, System.Drawing.Imaging.ImageFormat.Png);
+                outputImage.Save(outputFileName + ".png", System.Drawing.Imaging.ImageFormat.Png);
                 if (options.Verbose)
                     Console.WriteLine($"Saved: {outputFileName}");
             }

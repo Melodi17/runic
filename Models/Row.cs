@@ -6,6 +6,7 @@ public class Row
     private string[] columns;
     public Row(string[] headers, string[] columns)
     {
+        this.headers = headers;
         this.columns = columns;
     }
     
