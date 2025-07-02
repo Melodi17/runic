@@ -5,6 +5,9 @@ using CommandLine;
 using Components;
 using JsonSubTypes;
 using Newtonsoft.Json;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 
 class Program
 {
@@ -51,9 +54,12 @@ class Program
         
         if (!Directory.Exists(options.OutputPath))
             Directory.CreateDirectory(options.OutputPath);
+        
+        if (options.CleanOutput)
+            Directory.GetFiles(options.OutputPath).ToList().ForEach(File.Delete);
 
         Context ctx = new(template, dataSource);
-        Image baseImage = Image.FromFile(Path.Combine(Path.GetDirectoryName(options.TemplatePath), template.BaseImage)) ?? throw new FileNotFoundException("Base image not found.", template.BaseImage);
+        Image baseImage = Image.Load(Path.Combine(Path.GetDirectoryName(options.TemplatePath), template.BaseImage)) ?? throw new FileNotFoundException("Base image not found.", template.BaseImage);
         foreach ((Row row, int i) in dataSource.GetContent().Select((x, i) => (x, i)))
         {
             ctx.SetCurrentRow(row, i);
@@ -63,21 +69,18 @@ class Program
             outputFileName = Path.Combine(options.OutputPath, outputFileName);
             
             // Create a new image based on the base image
-            Bitmap outputImage = new Bitmap(baseImage.Width, baseImage.Height);
-            using (Graphics graphics = Graphics.FromImage(outputImage))
+            var outputImage = new Image<Rgba32>(baseImage.Width, baseImage.Height);
+            outputImage.Mutate(x => x.DrawImage(baseImage, 1f));
+            
+            outputImage.Mutate(x =>
             {
-                graphics.DrawImage(baseImage, 0, 0, baseImage.Width, baseImage.Height);
-                foreach (Component component in template.Components)
-                {
-                    component.Render(graphics, ctx);
-                }
-            }
+                foreach (Component component in template.Components.Where(x=>x.Visible))
+                    component.Render(x, ctx); 
+            });
             // Save the output image
             try
             {
-                outputImage.Save(outputFileName, System.Drawing.Imaging.ImageFormat.Png);
-                if (options.Verbose)
-                    Console.WriteLine($"Saved: {outputFileName}");
+                outputImage.Save(outputFileName + ".png");
             }
             catch (Exception ex)
             {

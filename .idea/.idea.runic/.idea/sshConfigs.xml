@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="SshConfigs">
+    <configs>
+      <sshConfig authType="PASSWORD" host="soap-xps" id="b53fd1f4-c96e-4474-af60-999b869d4746" port="22" nameFormat="DESCRIPTIVE" username="melod" useOpenSSHConfig="true" />
+    </configs>
+  </component>
+</project>

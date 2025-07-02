@@ -1,35 +1,34 @@
-namespace runic.Components;
-
-using System.Drawing;
-using System.Drawing.Imaging;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Memory;
+using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.Advanced;
+using SixLabors.ImageSharp.Processing.Processors.Transforms;
+using System.Collections.Generic;
+using System;
+using runic;
 
 public class ImageComponent : Component
 {
     public string ImagePath;
-    public int Transparency = 255; // Default to fully opaque
     public string SizeMode = "fit"; // Default to fit
 
-    private static Dictionary<string, Image> imageCache = new();
+    private static Dictionary<string, Image<Rgba32>> imageCache = new();
 
-    public override void Render(Graphics graphics, Context context)
+    public override void Render(IImageProcessingContext graphics, Context context)
     {
         if (string.IsNullOrEmpty(this.ImagePath))
             return;
 
-        // Resolve variables in the image path
         string resolvedImage = Helpers.ResolveVariables(this.ImagePath, context);
 
-        // Load the image
-        Image img;
-        if (imageCache.ContainsKey(resolvedImage))
-        {
-            img = imageCache[resolvedImage];
-        }
-        else
+        Image<Rgba32> img;
+        if (!imageCache.TryGetValue(resolvedImage, out img))
         {
             try
             {
-                img = Image.FromFile(resolvedImage);
+                img = Image.Load<Rgba32>(resolvedImage);
                 imageCache[resolvedImage] = img;
             }
             catch (Exception ex)
@@ -39,63 +38,74 @@ public class ImageComponent : Component
             }
         }
 
-        // Apply transparency if needed
-        if (Transparency < 255)
-        {
-            Bitmap bmp = new Bitmap(img.Width, img.Height);
-            using (Graphics g = Graphics.FromImage(bmp))
-            {
-                ColorMatrix matrix = new ColorMatrix();
-                matrix.Matrix33 = Transparency / 255f; // Set alpha channel
-                ImageAttributes attributes = new ImageAttributes();
-                attributes.SetColorMatrix(matrix);
-                g.DrawImage(img, new Rectangle(0, 0, img.Width, img.Height), 0, 0, img.Width, img.Height,
-                    GraphicsUnit.Pixel, attributes);
-                img.Dispose();
-                img = bmp;
-            }
-        }
+        // Clone the image so we can safely manipulate transparency
+        using var clonedImage = img.Clone();
 
-        // Determine size mode
-        Rectangle destRect;
-        if (SizeMode == "fit")
+        // Determine destination rectangle
+        Rectangle destRect = CalculateDestinationRect(clonedImage.Width, clonedImage.Height, Width, Height, SizeMode);
+
+        // Resize the image based on size mode
+        clonedImage.Mutate(x =>
         {
-            destRect = new Rectangle(X, Y, Width, Height);
-        }
-        else if (SizeMode == "stretch")
-        {
-            destRect = new Rectangle(X, Y, Width, Height);
-        }
-        else if (this.SizeMode == "zoom")
-        {
-            float aspectRatio = (float) img.Width / img.Height;
-            if (Width / Height > aspectRatio)
+            if (SizeMode == "stretch")
             {
-                int newHeight = (int) (Width / aspectRatio);
-                destRect = new Rectangle(X, Y + (Height - newHeight) / 2, Width, newHeight);
+                x.Resize(Width, Height);
+            }
+            else if (SizeMode == "fit" || SizeMode == "zoom" || SizeMode == "crop")
+            {
+                x.Resize(new ResizeOptions
+                {
+                    Size = new Size(destRect.Width, destRect.Height),
+                    Mode = SizeMode switch
+                    {
+                        "fit" => ResizeMode.Max,
+                        "zoom" => ResizeMode.Pad,
+                        "crop" => ResizeMode.Crop,
+                        _ => ResizeMode.Max
+                    },
+                    Position = AnchorPositionMode.Center
+                });
+            }
+        });
+
+        // Draw the image into the rendering context
+        graphics.DrawImage(clonedImage, new Point(destRect.X, destRect.Y), 1f);
+    }
+
+    private Rectangle CalculateDestinationRect(int imgW, int imgH, int targetW, int targetH, string mode)
+    {
+        float aspect = (float)imgW / imgH;
+        if (mode == "stretch" || mode == "fit")
+            return new Rectangle(X, Y, targetW, targetH);
+
+        if (mode == "zoom")
+        {
+            if (targetW / (float)targetH > aspect)
+            {
+                int newHeight = (int)(targetW / aspect);
+                return new Rectangle(X, Y + (targetH - newHeight) / 2, targetW, newHeight);
             }
             else
             {
-                int newWidth = (int) (Height * aspectRatio);
-                destRect = new Rectangle(X + (Width - newWidth) / 2, Y, newWidth, Height);
-            }
-        }
-        else // "crop"
-        {
-            float aspectRatio = (float) img.Width / img.Height;
-            if (Width / Height > aspectRatio)
-            {
-                int newWidth = (int) (Height * aspectRatio);
-                destRect = new Rectangle(X + (Width - newWidth) / 2, Y, newWidth, Height);
-            }
-            else
-            {
-                int newHeight = (int) (Width / aspectRatio);
-                destRect = new Rectangle(X, Y + (Height - newHeight) / 2, Width, newHeight);
+                int newWidth = (int)(targetH * aspect);
+                return new Rectangle(X + (targetW - newWidth) / 2, Y, newWidth, targetH);
             }
         }
 
-        // Draw the image
-        graphics.DrawImage(img, destRect);
+        if (mode == "crop")
+        {
+            if (targetW / (float)targetH > aspect)
+            {
+                int newWidth = (int)(targetH * aspect);
+                return new Rectangle(X + (targetW - newWidth) / 2, Y, newWidth, targetH);
+            }
+            else
+            {
+                int newHeight = (int)(targetW / aspect);
+                return new Rectangle(X, Y + (targetH - newHeight) / 2, targetW, newHeight);
+            }
+        }
+
+        return new Rectangle(X, Y, targetW, targetH); // Default fallback
     }
 }

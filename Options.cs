@@ -15,4 +15,7 @@ class Options
     
     [Option('v', "verbose", Default = false, HelpText = "Enable verbose output.")]
     public bool Verbose { get; set; }
+    
+    [Option("clean-output", Default = false, HelpText = "Clean the output folder before processing.")]
+    public bool CleanOutput { get; set; }
 }

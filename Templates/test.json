@@ -1,14 +1,55 @@
 {
   "BaseImage": "base.png",
+  "NameFormat": "card_$id",
+  "Variables": {
+    "c_red": "#FF0000",
+    "c_green": "#4EA72E",
+    "c_blue": "#0070C0",
+    "c_white": "#FFFFFF"
+  },
   "Components": [
     {
+      "Type": "Image",
+      "X": -5,
+      "Y": -5,
+      "Width": 910,
+      "Height": 1510,
+      "ImagePath": "Templates/Images/$id.png",
+      "SizeMode": "zoom"
+    },
+    {
       "Type": "Text",
-      "X": 50,
-      "Y": 50,
-      "Width": 200,
-      "Height": 50,
-      "Text": "Hello, $name!",
-      "FontSize": 24
+      "X": 122,
+      "Y": 110,
+      "Width": 250,
+      "Height": 1270,
+      "Text": "$name",
+      "Font": "M PLUS 1 Code",
+      "Size": 85,
+      "Alignment": "bottom,left",
+      "Color": "#FF0000",
+      "Case": "upper"
+    },
+    {
+      "Type": "Text",
+      "X": 250,
+      "Y": 110,
+      "Width": 520,
+      "Height": 800,
+      "Text": "\"$quote\"",
+      "Font": "M PLUS 1 Code",
+      "Size": 50,
+      "Alignment": "top,right",
+      "Color": "$c_$color"
+    },
+    {
+      "Type": "Image",
+      "X": 0,
+      "Y": 0,
+      "Width": 900,
+      "Height": 1500,
+      "ImagePath": "Templates/test.png",
+      "Visible": true
     }
   ]
 }
