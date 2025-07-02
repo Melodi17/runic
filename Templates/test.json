@@ -1,0 +1,14 @@
+{
+  "BaseImage": "base.png",
+  "Components": [
+    {
+      "Type": "Text",
+      "X": 50,
+      "Y": 50,
+      "Width": 200,
+      "Height": 50,
+      "Text": "Hello, $name!",
+      "FontSize": 24
+    }
+  ]
+}
