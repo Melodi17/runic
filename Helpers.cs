@@ -39,7 +39,7 @@ public static class Helpers
         }
 
         if (input.Contains("$") && substituted)
-            input = ResolveVariables(input, context);
+            input = Helpers.ResolveVariables(input, context);
 
         return input;
     }

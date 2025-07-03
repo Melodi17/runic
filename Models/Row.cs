@@ -12,17 +12,17 @@ public class Row
     
     public string[] Columns
     {
-        get { return columns; }
+        get { return this.columns; }
     }
     
     public string this[string header]
     {
         get
         {
-            int index = Array.IndexOf(headers, header);
+            int index = Array.IndexOf(this.headers, header);
             if (index < 0)
                 throw new KeyNotFoundException($"Header '{header}' not found.");
-            return columns[index];
+            return this.columns[index];
         }
     }
     
@@ -30,9 +30,9 @@ public class Row
     {
         get
         {
-            if (index < 0 || index >= columns.Length)
+            if (index < 0 || index >= this.columns.Length)
                 throw new IndexOutOfRangeException("Index is out of range.");
-            return columns[index];
+            return this.columns[index];
         }
     }
 }

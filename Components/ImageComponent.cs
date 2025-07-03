@@ -24,12 +24,12 @@ public class ImageComponent : Component
         string resolvedImage = Helpers.ResolveVariables(this.ImagePath, context);
 
         Image<Rgba32> img;
-        if (!imageCache.TryGetValue(resolvedImage, out img))
+        if (!ImageComponent.imageCache.TryGetValue(resolvedImage, out img))
         {
             try
             {
                 img = Image.Load<Rgba32>(resolvedImage);
-                imageCache[resolvedImage] = img;
+                ImageComponent.imageCache[resolvedImage] = img;
             }
             catch (Exception ex)
             {
@@ -42,21 +42,21 @@ public class ImageComponent : Component
         using var clonedImage = img.Clone();
 
         // Determine destination rectangle
-        Rectangle destRect = CalculateDestinationRect(clonedImage.Width, clonedImage.Height, Width, Height, SizeMode);
+        Rectangle destRect = this.CalculateDestinationRect(clonedImage.Width, clonedImage.Height, this.Width, this.Height, this.SizeMode);
 
         // Resize the image based on size mode
         clonedImage.Mutate(x =>
         {
-            if (SizeMode == "stretch")
+            if (this.SizeMode == "stretch")
             {
-                x.Resize(Width, Height);
+                x.Resize(this.Width, this.Height);
             }
-            else if (SizeMode == "fit" || SizeMode == "zoom" || SizeMode == "crop")
+            else if (this.SizeMode == "fit" || this.SizeMode == "zoom" || this.SizeMode == "crop")
             {
                 x.Resize(new ResizeOptions
                 {
                     Size = new Size(destRect.Width, destRect.Height),
-                    Mode = SizeMode switch
+                    Mode = this.SizeMode switch
                     {
                         "fit" => ResizeMode.Max,
                         "zoom" => ResizeMode.Pad,
@@ -76,19 +76,19 @@ public class ImageComponent : Component
     {
         float aspect = (float)imgW / imgH;
         if (mode == "stretch" || mode == "fit")
-            return new Rectangle(X, Y, targetW, targetH);
+            return new Rectangle(this.X, this.Y, targetW, targetH);
 
         if (mode == "zoom")
         {
             if (targetW / (float)targetH > aspect)
             {
                 int newHeight = (int)(targetW / aspect);
-                return new Rectangle(X, Y + (targetH - newHeight) / 2, targetW, newHeight);
+                return new Rectangle(this.X, this.Y + (targetH - newHeight) / 2, targetW, newHeight);
             }
             else
             {
                 int newWidth = (int)(targetH * aspect);
-                return new Rectangle(X + (targetW - newWidth) / 2, Y, newWidth, targetH);
+                return new Rectangle(this.X + (targetW - newWidth) / 2, this.Y, newWidth, targetH);
             }
         }
 
@@ -97,15 +97,15 @@ public class ImageComponent : Component
             if (targetW / (float)targetH > aspect)
             {
                 int newWidth = (int)(targetH * aspect);
-                return new Rectangle(X + (targetW - newWidth) / 2, Y, newWidth, targetH);
+                return new Rectangle(this.X + (targetW - newWidth) / 2, this.Y, newWidth, targetH);
             }
             else
             {
                 int newHeight = (int)(targetW / aspect);
-                return new Rectangle(X, Y + (targetH - newHeight) / 2, targetW, newHeight);
+                return new Rectangle(this.X, this.Y + (targetH - newHeight) / 2, targetW, newHeight);
             }
         }
 
-        return new Rectangle(X, Y, targetW, targetH); // Default fallback
+        return new Rectangle(this.X, this.Y, targetW, targetH); // Default fallback
     }
 }

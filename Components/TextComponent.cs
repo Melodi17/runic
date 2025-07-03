@@ -16,24 +16,27 @@ namespace runic.Components
         public string Color = "#000000";
         public string Alignment = "top,left"; // top, left, center, right, bottom
         public string? Case = null; // "upper", "lower", "title"
+        public string OutlineColor = "#000000";
+        public float OutlineWidth = 0f; // 0 means no outline
 
         private static FontCollection fontCollection = new();
         private static Dictionary<string, FontFamily> loadedFonts = new();
 
         public override void Render(IImageProcessingContext graphics, Context context)
         {
-            if (string.IsNullOrEmpty(Text))
+            if (string.IsNullOrEmpty(this.Text))
                 return;
 
-            string resolvedText = Helpers.ResolveVariables(Text, context);
-            string resolvedFontName = Helpers.ResolveVariables(this.Font, context);
-            string resolvedTextColor = Helpers.ResolveVariables(this.Color, context);
-            string resolvedAlignment = Helpers.ResolveVariables(Alignment, context);
+            string resolvedText = Helpers.ResolveVariables(this.Text, context);
+            string resolvedFont = Helpers.ResolveVariables(this.Font, context);
+            string resolvedColor = Helpers.ResolveVariables(this.Color, context);
+            string resolvedOutlineColor = Helpers.ResolveVariables(this.OutlineColor, context);
+            string resolvedAlignment = Helpers.ResolveVariables(this.Alignment, context);
 
             // Handle case transformation
-            if (Case != null)
+            if (this.Case != null)
             {
-                switch (Case.ToLower())
+                switch (this.Case.ToLower())
                 {
                     case "upper":
                         resolvedText = resolvedText.ToUpperInvariant();
@@ -50,22 +53,22 @@ namespace runic.Components
 
             // Try to load or get the font
             FontFamily family;
-            if (!loadedFonts.TryGetValue(resolvedFontName, out family))
+            if (!TextComponent.loadedFonts.TryGetValue(resolvedFont, out family))
             {
                 try
                 {
                     family = SystemFonts.Families.FirstOrDefault(f
-                        => f.Name.Equals(resolvedFontName, StringComparison.OrdinalIgnoreCase));
+                        => f.Name.Equals(resolvedFont, StringComparison.OrdinalIgnoreCase));
                     if (family == null)
                     {
-                        Console.WriteLine($"Font '{resolvedFontName}' not found. Falling back to Arial.");
+                        Console.WriteLine($"Font '{resolvedFont}' not found. Falling back to Arial.");
                         family = SystemFonts.Families.First(f => f.Name == "Arial");
                     }
-                    loadedFonts[resolvedFontName] = family;
+                    TextComponent.loadedFonts[resolvedFont] = family;
                 }
                 catch
                 {
-                    Console.WriteLine($"Failed to load font '{resolvedFontName}', using default.");
+                    Console.WriteLine($"Failed to load font '{resolvedFont}', using default.");
                     family = SystemFonts.Families.First(f => f.Name == "Arial");
                 }
             }
@@ -74,7 +77,8 @@ namespace runic.Components
                 Enum.TryParse<FontStyle>(this.Variant, true, out var style) ? style : FontStyle.Regular);
 
             // Parse color
-            Color color = SixLabors.ImageSharp.Color.ParseHex(resolvedTextColor);
+            Color color = SixLabors.ImageSharp.Color.ParseHex(resolvedColor);
+            Color outlineColor = SixLabors.ImageSharp.Color.ParseHex(resolvedOutlineColor);
 
             // Alignment
             HorizontalAlignment hAlign = resolvedAlignment.Contains("right")
@@ -90,8 +94,8 @@ namespace runic.Components
 
             RichTextOptions textOptions = new(font)
             {
-                Origin = new PointF(X, Y),
-                WrappingLength = Width,
+                Origin = new PointF(this.X, this.Y),
+                WrappingLength = this.Width,
                 HorizontalAlignment = HorizontalAlignment.Left,
                 VerticalAlignment = VerticalAlignment.Top,
                 TextAlignment = hAlign switch
@@ -102,12 +106,13 @@ namespace runic.Components
                 }
             };
 
-            if (Component.DebugMode)
-                graphics.Draw(SixLabors.ImageSharp.Color.Aqua, 10, new RectangleF(X, Y, Width, Height));
+            if (context.Template.DebugMode)
+                graphics.Draw(SixLabors.ImageSharp.Color.Aqua, 10,
+                    new RectangleF(this.X, this.Y, this.Width, this.Height));
 
             var measureOptions = new TextOptions(font)
             {
-                WrappingLength = Width,
+                WrappingLength = this.Width,
                 HorizontalAlignment = HorizontalAlignment.Left,
                 VerticalAlignment = VerticalAlignment.Top,
                 TextAlignment = textOptions.TextAlignment,
@@ -115,8 +120,8 @@ namespace runic.Components
             var textSize = TextMeasurer.MeasureAdvance(resolvedText, measureOptions);
 
             // adjust origin based on alignment
-            float originX = X;
-            float originY = Y;
+            float originX = this.X;
+            float originY = this.Y;
 
             // if (hAlign == HorizontalAlignment.Center)
             //     originX = X + (Width - textSize.Width) / 2;
@@ -124,19 +129,23 @@ namespace runic.Components
             //     originX = X + (Width - textSize.Width);
 
             if (vAlign == VerticalAlignment.Center)
-                originY = Y + (Height - textSize.Height) / 2;
+                originY = this.Y + (this.Height - textSize.Height) / 2;
             else if (vAlign == VerticalAlignment.Bottom)
-                originY = Y + (Height - textSize.Height);
+                originY = this.Y + (this.Height - textSize.Height);
 
-            if (Component.DebugMode)
+            if (context.Template.DebugMode)
             {
-                graphics.Draw(SixLabors.ImageSharp.Color.Red, 10, new RectangleF(X - 5, Y - 5, 10, 10));
+                graphics.Draw(SixLabors.ImageSharp.Color.Red, 10, new RectangleF(this.X - 5, this.Y - 5, 10, 10));
                 graphics.Draw(SixLabors.ImageSharp.Color.Green, 10, new RectangleF(originX - 5, originY - 5, 10, 10));
             }
 
             textOptions.Origin = new PointF(originX, originY);
 
-            graphics.DrawText(textOptions, resolvedText, color);
+            if (this.OutlineWidth == 0)
+                graphics.DrawText(textOptions, resolvedText, new SolidBrush(color));
+            else
+                graphics.DrawText(textOptions, resolvedText, new SolidBrush(color),
+                    new SolidPen(outlineColor, this.OutlineWidth));
         }
     }
 }

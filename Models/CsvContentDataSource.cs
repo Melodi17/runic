@@ -10,19 +10,19 @@ public class CsvContentDataSource : IContentDataSource
     public CsvContentDataSource(string filePath)
     {
         IEnumerable<string> lines = File.ReadLines(filePath);
-        Headers = SafeSplit(lines.First(), ',');
-        Rows = new();
+        this.Headers = CsvContentDataSource.SafeSplit(lines.First(), ',');
+        this.Rows = new();
 
         foreach (string line in lines.Skip(1))
         {
-            string[] values = SafeSplit(line, ',');
-            if (values.Length != Headers.Length)
+            string[] values = CsvContentDataSource.SafeSplit(line, ',');
+            if (values.Length != this.Headers.Length)
                 throw new InvalidOperationException("CSV file has inconsistent number of columns.");
 
-            string[] columns = new string[Headers.Length];
-            for (int i = 0; i < Headers.Length; i++)
+            string[] columns = new string[this.Headers.Length];
+            for (int i = 0; i < this.Headers.Length; i++)
             {
-                string header = Headers[i].Trim();
+                string header = this.Headers[i].Trim();
                 string value = values[i].Trim();
 
                 if (string.IsNullOrEmpty(value))
@@ -31,7 +31,7 @@ public class CsvContentDataSource : IContentDataSource
                 columns[i] = value;
             }
 
-            Rows.Add(new Row(Headers, columns));
+            this.Rows.Add(new Row(this.Headers, columns));
         }
     }
 
@@ -76,5 +76,5 @@ public class CsvContentDataSource : IContentDataSource
         return result.ToArray();
     }
 
-    public IEnumerable<Row> GetContent() => Rows;
+    public IEnumerable<Row> GetContent() => this.Rows;
 }

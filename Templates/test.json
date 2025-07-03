@@ -40,7 +40,9 @@
       "Font": "M PLUS 1 Code",
       "Size": 50,
       "Alignment": "top,right",
-      "Color": "$c_$color"
+      "Color": "$c_$color",
+      "OutlineColor": "#000000",
+      "OutlineWidth": 1
     },
     {
       "Type": "Image",
@@ -49,7 +51,7 @@
       "Width": 900,
       "Height": 1500,
       "ImagePath": "Templates/test.png",
-      "Visible": true
+      "Visible": false
     }
   ]
 }

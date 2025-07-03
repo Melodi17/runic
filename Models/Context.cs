@@ -9,14 +9,14 @@ public class Context
     
     public Context(Template template, IContentDataSource dataSource)
     {
-        Template = template;
-        DataSource = dataSource;
-        CurrentRowIndex = -1; // Initialize to -1 to indicate no current row
+        this.Template = template;
+        this.DataSource = dataSource;
+        this.CurrentRowIndex = -1; // Initialize to -1 to indicate no current row
     }
     
     public void SetCurrentRow(Row row, int index)
     {
-        CurrentRow = row;
-        CurrentRowIndex = index;
+        this.CurrentRow = row;
+        this.CurrentRowIndex = index;
     }
 }
