@@ -2,7 +2,7 @@ namespace runic;
 
 using CommandLine;
 
-class Options
+public class Options
 {
     [Option('t', "template", Required = true, HelpText = "Path to the template file.")]
     public string TemplatePath { get; set; }
@@ -16,6 +16,9 @@ class Options
     [Option('v', "verbose", Default = false, HelpText = "Enable verbose output.")]
     public bool Verbose { get; set; }
     
-    [Option("clean-output", Default = false, HelpText = "Clean the output folder before processing.")]
+    [Option('c', "clean-output", Default = false, HelpText = "Clean the output folder before processing.")]
     public bool CleanOutput { get; set; }
+    
+    [Option('D', "debug", Default = false, HelpText = "Enable debug mode for additional logging.")]
+    public bool DebugMode { get; set; }
 }

@@ -13,9 +13,7 @@ class Program
 {
     static void Main(string[] args)
     {
-        Parser
-            .Default.ParseArguments<Options>(args)
-            .WithParsed(options => Run(options));
+        Parser.Default.ParseArguments<Options>(args).WithParsed(options => Run(options));
     }
 
     static void Run(Options options)
@@ -57,15 +55,16 @@ class Program
         if (options.CleanOutput)
             Directory.GetFiles(options.OutputPath).ToList().ForEach(File.Delete);
 
-        Context ctx = new(template, dataSource);
+        Context ctx = new(template, dataSource, options);
         Image baseImage = Image.Load(Path.Combine(Path.GetDirectoryName(options.TemplatePath), template.BaseImage))
                           ?? throw new FileNotFoundException("Base image not found.", template.BaseImage);
-        
-        foreach ((Row row, int i) in dataSource.GetContent().Select((x, i) => (x, i)))
+
+        IEnumerable<(Row x, int i)> rows = dataSource.GetContent().Select((x, i) => (x, i)).ToArray();
+        foreach ((Row row, int i) in rows)
         {
             ctx.SetCurrentRow(row, i);
-            if (options.Verbose)
-                Console.WriteLine($"Processing row {i + 1}: {string.Join(", ", row.Columns)}");
+            Helpers.ProgressBar(i, rows.Count(), 50,
+                $"({i}) {dataSource.Headers.First()}: {row[dataSource.Headers.First()]}");
             string outputFileName = Helpers.ResolveVariables(template.NameFormat, ctx);
             outputFileName = Path.Combine(options.OutputPath, outputFileName);
 
@@ -92,5 +91,8 @@ class Program
                 outputImage.Dispose();
             }
         }
+        Helpers.ProgressBar(rows.Count(), rows.Count(), 50, $"{rows.Count()} rows processed");
+
+        Console.WriteLine("Processing completed successfully.");
     }
 }

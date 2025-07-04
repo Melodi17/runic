@@ -106,7 +106,7 @@ namespace runic.Components
                 }
             };
 
-            if (context.Template.DebugMode)
+            if (context.Options.DebugMode)
                 graphics.Draw(SixLabors.ImageSharp.Color.Aqua, 10,
                     new RectangleF(this.X, this.Y, this.Width, this.Height));
 
@@ -133,7 +133,7 @@ namespace runic.Components
             else if (vAlign == VerticalAlignment.Bottom)
                 originY = this.Y + (this.Height - textSize.Height);
 
-            if (context.Template.DebugMode)
+            if (context.Options.DebugMode)
             {
                 graphics.Draw(SixLabors.ImageSharp.Color.Red, 10, new RectangleF(this.X - 5, this.Y - 5, 10, 10));
                 graphics.Draw(SixLabors.ImageSharp.Color.Green, 10, new RectangleF(originX - 5, originY - 5, 10, 10));

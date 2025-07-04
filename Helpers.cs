@@ -43,4 +43,22 @@ public static class Helpers
 
         return input;
     }
+    
+    public static void ProgressBar(int current, int total, int width = 50, string message = "")
+    {
+        if (total <= 0)
+            return;
+
+        double percentage = (double)current / total;
+        int filledWidth = (int)(width * percentage);
+        int emptyWidth = width - filledWidth;
+
+        string bar = new string('#', filledWidth) + new string(' ', emptyWidth);
+        // send clear line to console
+        Console.Write("\e[1K"); // Clear the current line
+        Console.Write($"\r[{bar}] {percentage:P2} {message}");
+        
+        if (current == total)
+            Console.WriteLine(); // Move to the next line when done
+    }
 }
