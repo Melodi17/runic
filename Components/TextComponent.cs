@@ -88,7 +88,7 @@ namespace runic.Components
                     : HorizontalAlignment.Left;
             VerticalAlignment vAlign = resolvedAlignment.Contains("bottom")
                 ? VerticalAlignment.Bottom
-                : resolvedAlignment.Contains("center")
+                : resolvedAlignment.Contains("middle")
                     ? VerticalAlignment.Center
                     : VerticalAlignment.Top;
 

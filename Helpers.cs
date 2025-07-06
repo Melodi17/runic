@@ -22,7 +22,7 @@ public static class Helpers
 
         foreach (KeyValuePair<string, string> var in context.Template.Variables.OrderBy(p => p.Key.Length))
         {
-            string placeholder = $"${var.Key}";
+            string placeholder = $"@{var.Key}";
             if (input.Contains(placeholder))
             {
                 string value = var.Value;
@@ -38,7 +38,7 @@ public static class Helpers
             substituted = true;
         }
 
-        if (input.Contains("$") && substituted)
+        if ((input.Contains("$") || input.Contains("@")) && substituted)
             input = Helpers.ResolveVariables(input, context);
 
         return input;
