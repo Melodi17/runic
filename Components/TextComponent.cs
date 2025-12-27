@@ -2,150 +2,211 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.Fonts;
-using SixLabors.ImageSharp.PixelFormats;
-using System;
 
-namespace runic.Components
+namespace runic.Components;
+
+using Models;
+
+public class TextComponent : Component
 {
-    public class TextComponent : Component
+    public string Text;
+    public string Font = "Arial";
+    public float Size = 12f;
+    public FontStyle Variant = FontStyle.Regular;
+    public string Color = "#000000";
+    public string Alignment = "top,left"; // "top,left", "middle,center", "bottom,right", etc.
+    public TextCase Case = TextCase.Normal;
+    public string OutlineColor = "#000000";
+    public float OutlineWidth = 0f; // 0 means no outline
+
+    private static readonly Dictionary<string, FontFamily> _loadedFonts = new();
+
+    public override void Render(IImageProcessingContext graphics, Context context)
     {
-        public string Text;
-        public string Font = "Arial";
-        public float Size = 12f;
-        public string Variant = "regular";
-        public string Color = "#000000";
-        public string Alignment = "top,left"; // top, left, center, right, bottom
-        public string? Case = null; // "upper", "lower", "title"
-        public string OutlineColor = "#000000";
-        public float OutlineWidth = 0f; // 0 means no outline
+        if (string.IsNullOrEmpty(this.Text))
+            return;
 
-        private static FontCollection fontCollection = new();
-        private static Dictionary<string, FontFamily> loadedFonts = new();
+        string resolvedText = Helpers.ResolveVariables(this.Text, context);
+        string resolvedFont = Helpers.ResolveVariables(this.Font, context);
+        string resolvedColor = Helpers.ResolveVariables(this.Color, context);
+        string resolvedOutlineColor = Helpers.ResolveVariables(this.OutlineColor, context);
+        string resolvedAlignment = Helpers.ResolveVariables(this.Alignment, context);
 
-        public override void Render(IImageProcessingContext graphics, Context context)
+        // Handle case transformation
+        resolvedText = TransformTextCase(resolvedText, this.Case);
+
+        // Try to load or get the font
+        Font font = TryLoadFont(resolvedFont, this.Size, this.Variant);
+
+        Color color = SixLabors.ImageSharp.Color.ParseHex(resolvedColor);
+        Color outlineColor = SixLabors.ImageSharp.Color.ParseHex(resolvedOutlineColor);
+
+        if (!ParseAlignment(resolvedAlignment, out HorizontalAlignment? hAlign, out VerticalAlignment? vAlign))
         {
-            if (string.IsNullOrEmpty(this.Text))
-                return;
+            Console.WriteLine($"Invalid alignment '{resolvedAlignment}', defaulting to top,left.");
+            hAlign = HorizontalAlignment.Left;
+            vAlign = VerticalAlignment.Top;
+        }
 
-            string resolvedText = Helpers.ResolveVariables(this.Text, context);
-            string resolvedFont = Helpers.ResolveVariables(this.Font, context);
-            string resolvedColor = Helpers.ResolveVariables(this.Color, context);
-            string resolvedOutlineColor = Helpers.ResolveVariables(this.OutlineColor, context);
-            string resolvedAlignment = Helpers.ResolveVariables(this.Alignment, context);
+        RichTextOptions textOptions = new(font)
+        {
+            Origin = new PointF(this.X, this.Y),
+            WrappingLength = this.Width,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top,
+            TextAlignment = ConvertToTextAlignment(hAlign!.Value),
+        };
 
-            // Handle case transformation
-            if (this.Case != null)
+        if (context.Options.DebugMode)
+           DrawBoundingBox(
+                graphics,
+                this.X,
+                this.Y,
+                textOptions.Origin.X - this.X,
+                textOptions.Origin.Y - this.Y);
+
+        TextOptions measureOptions = new(font)
+        {
+            WrappingLength = this.Width,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top,
+            TextAlignment = textOptions.TextAlignment,
+        };
+        FontRectangle textSize = TextMeasurer.MeasureAdvance(resolvedText, measureOptions);
+
+        // adjust origin based on alignment
+        float originX = this.X;
+        float originY = this.Y;
+
+        if (vAlign == VerticalAlignment.Center)
+            originY = this.Y + (this.Height - textSize.Height) / 2;
+        else if (vAlign == VerticalAlignment.Bottom)
+            originY = this.Y + (this.Height - textSize.Height);
+
+        if (context.Options.DebugMode)
+            DrawBoundingBox(
+                graphics,
+                this.X,
+                this.Y,
+                originX,
+                originY);
+
+        textOptions.Origin = new PointF(originX, originY);
+
+        if (this.OutlineWidth == 0)
+            graphics.DrawText(textOptions, resolvedText, new SolidBrush(color));
+        else
+            graphics.DrawText(
+                textOptions,
+                resolvedText,
+                new SolidBrush(color),
+                new SolidPen(outlineColor, this.OutlineWidth));
+    }
+    private static Font TryLoadFont(string resolvedFont, float size, FontStyle variant)
+    {
+        FontFamily family;
+        if (!TextComponent._loadedFonts.TryGetValue(resolvedFont, out family))
+        {
+            try
             {
-                switch (this.Case.ToLower())
+                family = SystemFonts.Families.FirstOrDefault(f
+                    => f.Name.Equals(resolvedFont, StringComparison.OrdinalIgnoreCase));
+                if (family == null)
                 {
-                    case "upper":
-                        resolvedText = resolvedText.ToUpperInvariant();
-                        break;
-                    case "lower":
-                        resolvedText = resolvedText.ToLowerInvariant();
-                        break;
-                    case "title":
-                        resolvedText =
-                            System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(resolvedText);
-                        break;
-                }
-            }
-
-            // Try to load or get the font
-            FontFamily family;
-            if (!TextComponent.loadedFonts.TryGetValue(resolvedFont, out family))
-            {
-                try
-                {
-                    family = SystemFonts.Families.FirstOrDefault(f
-                        => f.Name.Equals(resolvedFont, StringComparison.OrdinalIgnoreCase));
-                    if (family == null)
-                    {
-                        Console.WriteLine($"Font '{resolvedFont}' not found. Falling back to Arial.");
-                        family = SystemFonts.Families.First(f => f.Name == "Arial");
-                    }
-                    TextComponent.loadedFonts[resolvedFont] = family;
-                }
-                catch
-                {
-                    Console.WriteLine($"Failed to load font '{resolvedFont}', using default.");
+                    Console.WriteLine($"Font '{resolvedFont}' not found. Falling back to Arial.");
                     family = SystemFonts.Families.First(f => f.Name == "Arial");
                 }
+                TextComponent._loadedFonts[resolvedFont] = family;
             }
-
-            Font font = family.CreateFont(this.Size,
-                Enum.TryParse<FontStyle>(this.Variant, true, out var style) ? style : FontStyle.Regular);
-
-            // Parse color
-            Color color = SixLabors.ImageSharp.Color.ParseHex(resolvedColor);
-            Color outlineColor = SixLabors.ImageSharp.Color.ParseHex(resolvedOutlineColor);
-
-            // Alignment
-            HorizontalAlignment hAlign = resolvedAlignment.Contains("right")
-                ? HorizontalAlignment.Right
-                : resolvedAlignment.Contains("center")
-                    ? HorizontalAlignment.Center
-                    : HorizontalAlignment.Left;
-            VerticalAlignment vAlign = resolvedAlignment.Contains("bottom")
-                ? VerticalAlignment.Bottom
-                : resolvedAlignment.Contains("middle")
-                    ? VerticalAlignment.Center
-                    : VerticalAlignment.Top;
-
-            RichTextOptions textOptions = new(font)
+            catch
             {
-                Origin = new PointF(this.X, this.Y),
-                WrappingLength = this.Width,
-                HorizontalAlignment = HorizontalAlignment.Left,
-                VerticalAlignment = VerticalAlignment.Top,
-                TextAlignment = hAlign switch
-                {
-                    HorizontalAlignment.Left => TextAlignment.Start,
-                    HorizontalAlignment.Center => TextAlignment.Center,
-                    HorizontalAlignment.Right => TextAlignment.End,
-                }
-            };
-
-            if (context.Options.DebugMode)
-                graphics.Draw(SixLabors.ImageSharp.Color.Aqua, 10,
-                    new RectangleF(this.X, this.Y, this.Width, this.Height));
-
-            var measureOptions = new TextOptions(font)
-            {
-                WrappingLength = this.Width,
-                HorizontalAlignment = HorizontalAlignment.Left,
-                VerticalAlignment = VerticalAlignment.Top,
-                TextAlignment = textOptions.TextAlignment,
-            };
-            var textSize = TextMeasurer.MeasureAdvance(resolvedText, measureOptions);
-
-            // adjust origin based on alignment
-            float originX = this.X;
-            float originY = this.Y;
-
-            // if (hAlign == HorizontalAlignment.Center)
-            //     originX = X + (Width - textSize.Width) / 2;
-            // else if (hAlign == HorizontalAlignment.Right)
-            //     originX = X + (Width - textSize.Width);
-
-            if (vAlign == VerticalAlignment.Center)
-                originY = this.Y + (this.Height - textSize.Height) / 2;
-            else if (vAlign == VerticalAlignment.Bottom)
-                originY = this.Y + (this.Height - textSize.Height);
-
-            if (context.Options.DebugMode)
-            {
-                graphics.Draw(SixLabors.ImageSharp.Color.Red, 10, new RectangleF(this.X - 5, this.Y - 5, 10, 10));
-                graphics.Draw(SixLabors.ImageSharp.Color.Green, 10, new RectangleF(originX - 5, originY - 5, 10, 10));
+                Console.WriteLine($"Failed to load font '{resolvedFont}', using default.");
+                family = SystemFonts.Families.First(f => f.Name == "Arial");
             }
-
-            textOptions.Origin = new PointF(originX, originY);
-
-            if (this.OutlineWidth == 0)
-                graphics.DrawText(textOptions, resolvedText, new SolidBrush(color));
-            else
-                graphics.DrawText(textOptions, resolvedText, new SolidBrush(color),
-                    new SolidPen(outlineColor, this.OutlineWidth));
         }
+
+        Font font = family.CreateFont(size, variant);
+        return font;
+    }
+
+    private string TransformTextCase(string text, TextCase textCase)
+        => textCase switch
+        {
+            TextCase.Normal => text,
+            TextCase.Upper  => text.ToUpper(),
+            TextCase.Lower  => text.ToLower(),
+            TextCase.Title  => System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(text.ToLower()),
+            _               => throw new ArgumentOutOfRangeException(),
+        };
+
+    private static void DrawBoundingBox(
+        IImageProcessingContext graphics,
+        float x,
+        float y,
+        float width,
+        float height)
+    {
+        graphics.Draw(
+            Pens.Solid(SixLabors.ImageSharp.Color.Red, 1),
+            new RectangleF(x, y, width, height));
+    }
+
+    private static bool ParseAlignment(
+        string alignment,
+        out HorizontalAlignment? hAlign,
+        out VerticalAlignment? vAlign)
+    {
+        hAlign = null;
+        vAlign = null;
+
+        string[] parts = alignment.ToLower().Split(',');
+        if (parts.Length != 2)
+            return false;
+
+        string hPart = parts[1].Trim();
+        string vPart = parts[0].Trim();
+
+        switch (hPart)
+        {
+            case "left":
+                hAlign = HorizontalAlignment.Left;
+                break;
+            case "center":
+                hAlign = HorizontalAlignment.Center;
+                break;
+            case "right":
+                hAlign = HorizontalAlignment.Right;
+                break;
+            default:
+                return false;
+        }
+
+        switch (vPart)
+        {
+            case "top":
+                vAlign = VerticalAlignment.Top;
+                break;
+            case "middle":
+                vAlign = VerticalAlignment.Center;
+                break;
+            case "bottom":
+                vAlign = VerticalAlignment.Bottom;
+                break;
+            default:
+                return false;
+        }
+
+        return true;
+    }
+
+    private static TextAlignment ConvertToTextAlignment(HorizontalAlignment hAlign)
+    {
+        return hAlign switch
+        {
+            HorizontalAlignment.Left   => TextAlignment.Start,
+            HorizontalAlignment.Center => TextAlignment.Center,
+            HorizontalAlignment.Right  => TextAlignment.End,
+            _                          => throw new ArgumentOutOfRangeException(),
+        };
     }
 }

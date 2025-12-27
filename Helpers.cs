@@ -1,5 +1,7 @@
 namespace runic;
 
+using Models;
+
 public static class Helpers
 {
     public static string ResolveVariables(string input, Context context)

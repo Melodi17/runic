@@ -1,6 +1,6 @@
-namespace runic;
+namespace runic.Components;
 
-using System.Drawing;
+using Models;
 using SixLabors.ImageSharp.Processing;
 
 public abstract class Component

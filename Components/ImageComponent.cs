@@ -1,18 +1,15 @@
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
-using SixLabors.ImageSharp.Memory;
-using SixLabors.ImageSharp.Formats;
-using SixLabors.ImageSharp.Advanced;
-using SixLabors.ImageSharp.Processing.Processors.Transforms;
-using System.Collections.Generic;
-using System;
-using runic;
+
+namespace runic.Components;
+
+using Models;
 
 public class ImageComponent : Component
 {
     public string ImagePath;
-    public string SizeMode = "fit"; // Default to fit
+    public ImageSizeMode SizeMode = ImageSizeMode.Fit;
 
     private static Dictionary<string, Image<Rgba32>> imageCache = new();
 
@@ -23,85 +20,111 @@ public class ImageComponent : Component
 
         string resolvedImage = Helpers.ResolveVariables(this.ImagePath, context);
 
-        Image<Rgba32> img;
-        if (!ImageComponent.imageCache.TryGetValue(resolvedImage, out img))
+        Image<Rgba32>? img = TryLoadImage(resolvedImage);
+        if (img == null)
         {
-            try
-            {
-                img = Image.Load<Rgba32>(resolvedImage);
-                ImageComponent.imageCache[resolvedImage] = img;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error loading image '{resolvedImage}': {ex.Message}");
-                return;
-            }
+            Console.WriteLine($"Error loading image '{resolvedImage}'");
+            return;
         }
 
         // Clone the image so we can safely manipulate transparency
         using var clonedImage = img.Clone();
 
-        // Determine destination rectangle
-        Rectangle destRect = this.CalculateDestinationRect(clonedImage.Width, clonedImage.Height, this.Width, this.Height, this.SizeMode);
+        Rectangle destRect = this.CalculateDestinationRect(
+            clonedImage.Width,
+            clonedImage.Height,
+            this.Width,
+            this.Height,
+            this.SizeMode);
 
-        // Resize the image based on size mode
-        clonedImage.Mutate(x =>
-        {
-            if (this.SizeMode == "stretch")
-            {
-                x.Resize(this.Width, this.Height);
-            }
-            else if (this.SizeMode == "fit" || this.SizeMode == "zoom" || this.SizeMode == "crop")
-            {
-                x.Resize(new ResizeOptions
-                {
-                    Size = new Size(destRect.Width, destRect.Height),
-                    Mode = this.SizeMode switch
-                    {
-                        "fit" => ResizeMode.Max,
-                        "zoom" => ResizeMode.Pad,
-                        "crop" => ResizeMode.Crop,
-                        _ => ResizeMode.Max
-                    },
-                    Position = AnchorPositionMode.Center
-                });
-            }
-        });
+        ApplySizeMode(clonedImage, destRect, this.SizeMode, this.Width, this.Height);
 
-        // Draw the image into the rendering context
         graphics.DrawImage(clonedImage, new Point(destRect.X, destRect.Y), 1f);
     }
-
-    private Rectangle CalculateDestinationRect(int imgW, int imgH, int targetW, int targetH, string mode)
+    
+    private static Image<Rgba32>? TryLoadImage(string path)
     {
-        float aspect = (float)imgW / imgH;
-        if (mode == "stretch" || mode == "fit")
+        if (imageCache.TryGetValue(path, out Image<Rgba32>? img))
+            return img;
+
+        try
+        {
+            img = Image.Load<Rgba32>(path);
+            imageCache[path] = img;
+            return img;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+    
+    private static void ApplySizeMode(Image<Rgba32> image, Rectangle destRect, ImageSizeMode sizeMode, int width, int height)
+    {
+        image.Mutate(x =>
+        {
+            switch (sizeMode)
+            {
+                case ImageSizeMode.Stretch:
+                    x.Resize(width, height);
+                    break;
+                
+                case ImageSizeMode.Fit:
+                case ImageSizeMode.Zoom:
+                case ImageSizeMode.Crop:
+                    x.Resize(
+                        new ResizeOptions
+                        {
+                            Size = new Size(destRect.Width, destRect.Height),
+                            Mode = sizeMode switch
+                            {
+                                ImageSizeMode.Fit  => ResizeMode.Max,
+                                ImageSizeMode.Zoom => ResizeMode.Pad,
+                                ImageSizeMode.Crop => ResizeMode.Crop,
+                                _                  => ResizeMode.Max
+                            },
+                            Position = AnchorPositionMode.Center
+                        });
+                    break;
+            }
+        });
+    }
+
+    private Rectangle CalculateDestinationRect(
+        int imgW,
+        int imgH,
+        int targetW,
+        int targetH,
+        ImageSizeMode mode)
+    {
+        float aspect = (float) imgW / imgH;
+        if (mode == ImageSizeMode.Stretch || mode == ImageSizeMode.Fit)
             return new Rectangle(this.X, this.Y, targetW, targetH);
 
-        if (mode == "zoom")
+        if (mode == ImageSizeMode.Zoom)
         {
-            if (targetW / (float)targetH > aspect)
+            if (targetW / (float) targetH > aspect)
             {
-                int newHeight = (int)(targetW / aspect);
+                int newHeight = (int) (targetW / aspect);
                 return new Rectangle(this.X, this.Y + (targetH - newHeight) / 2, targetW, newHeight);
             }
             else
             {
-                int newWidth = (int)(targetH * aspect);
+                int newWidth = (int) (targetH * aspect);
                 return new Rectangle(this.X + (targetW - newWidth) / 2, this.Y, newWidth, targetH);
             }
         }
 
-        if (mode == "crop")
+        if (mode == ImageSizeMode.Crop)
         {
-            if (targetW / (float)targetH > aspect)
+            if (targetW / (float) targetH > aspect)
             {
-                int newWidth = (int)(targetH * aspect);
+                int newWidth = (int) (targetH * aspect);
                 return new Rectangle(this.X + (targetW - newWidth) / 2, this.Y, newWidth, targetH);
             }
             else
             {
-                int newHeight = (int)(targetW / aspect);
+                int newHeight = (int) (targetW / aspect);
                 return new Rectangle(this.X, this.Y + (targetH - newHeight) / 2, targetW, newHeight);
             }
         }

@@ -1,4 +1,6 @@
-namespace runic;
+namespace runic.Models;
+
+using Components;
 
 public class Template
 {

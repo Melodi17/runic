@@ -1,4 +1,4 @@
-namespace runic;
+namespace runic.Models;
 
 using System.Text;
 
