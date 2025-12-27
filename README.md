@@ -1,5 +1,41 @@
 # Runic
-A templating program designed to bulk-create visuals from a dataset
+Runic is a command-line image templating tool for generating large batches of visuals
+(e.g. cards, posters, or social assets) from structured data sources such as CSV files.
+
+It is designed for repeatable, data-driven visual production without manual layout work.
+
+## Features
+- Bulk image generation from CSV data
+- JSON-based template format
+- Text and image components with bounding-box layout
+- Variable substitution with recursive expansion
+- Text alignment, casing, outlines, and font sizing
+- Multiple image scaling modes (`zoom`, `fit`, `stretch`, `crop`)
+- Debug mode for visual layout inspection
+
+## Installation
+### From source
+```sh
+git clone https://github.com/yourname/runic
+cd runic
+dotnet build -c Release
+
+dotnet run -- -t template.json -d data.csv -o output/
+```
+
+### Install as a global tool
+```sh
+dotnet tool install -g runic
+```
+
+## Quick Start
+```sh
+runic -t template.json -d data.csv -o output/
+```
+This command generates one image per row in `data.csv` using `template.json`,
+saving the results to the output directory.
+
+---
 
 ## Usage
 ```sh
@@ -17,10 +53,21 @@ $ runic -t <template> -d <data-source> -o <output>
   --version             Display version information.
 ```
 
-## Template
-The template file format is a json file, it describes how to bind the data source to a visual.
+## Template Format
+Templates are defined using JSON and describe how data entries are mapped to visual components.
 
-Example (remove comments before using)
+### Top-Level Properties
+- BaseImage (string, required)
+  - Path to the base image. All output images are generated on top of a copy of this image.
+- NameFormat (string, required)
+  - Output filename format. \$id refers to the current entry’s field, and \$# refers to the numerical index.
+- Variables (object, optional)
+  - Constant variables accessible using @\<name>.
+- Components (array, required)
+  - A list of visual components to render.
+
+### Example Template
+> Remove comments before use
 ```jsonc
 {
   "BaseImage": "base.png", // Required. Image path relative to template path, all images will be generated on top of a copy of this one.
@@ -73,19 +120,29 @@ Example (remove comments before using)
 ```
 
 ## Data Sources
-Currently only csv files are supported.
+Currently, only CSV files are supported as data sources.
 
-Example (made to go with template file from above):
+Each row represents one generated image, with column's values accessible via `$<column_name>` in the template.
+
+### Example CSV
 ```csv
 id,name,quote,color
-1,Alice,"Sometimes the truth hurts more than a lie.",red
-2,Bob,"Every piece of evidence tells a story.",blue
-3,Clara,"You can trust your instincts, even in chaos.",green
-4,David,"I saw it with my own eyes.",blue
-5,Eve,"Lies are just truths with bad timing.",red
-6,Frank,"I remember what she said that day.",green
-7,Grace,"This clue changes everything.",blue
-8,Hector,"He looked me in the eye and lied.",red
-9,Ivy,"Don't ignore your gut feeling.",green
-10,Jack,"Proof is stronger than memory.",blue
+1,Alice,"To be or not to be",red
+2,Bob,"I think, therefore I am",blue
+3,Charlie,"The only thing we have to fear is fear itself",green
+4,Diana,"That's one small step for man ...",red
 ```
+
+## Limitations & Future Work
+- Only CSV data sources are supported currently.
+- Limited image formats (PNG, JPEG).
+- More component types (shapes, lines, etc.) could be added.
+
+## Project Status
+Runic is not in active development. It is a small utility project created to solve a specific need.
+
+## Contributing
+Contributions are welcome! Please open issues or pull requests on the GitHub repository.
+
+## License
+This project is licensed under the MIT License.
