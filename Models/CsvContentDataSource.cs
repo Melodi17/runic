@@ -14,25 +14,24 @@ public class CsvContentDataSource : IContentDataSource
         this.Rows = new();
 
         foreach (string line in lines.Skip(1))
+            ParseRow(line);
+    }
+
+    private void ParseRow(string line)
+    {
+        string[] values = CsvContentDataSource.SafeSplit(line, ',');
+        if (values.Length != this.Headers.Length)
+            throw new InvalidOperationException("CSV file has inconsistent number of columns.");
+
+        string[] columns = new string[this.Headers.Length];
+        for (int i = 0; i < this.Headers.Length; i++)
         {
-            string[] values = CsvContentDataSource.SafeSplit(line, ',');
-            if (values.Length != this.Headers.Length)
-                throw new InvalidOperationException("CSV file has inconsistent number of columns.");
+            string value = values[i].Trim();
 
-            string[] columns = new string[this.Headers.Length];
-            for (int i = 0; i < this.Headers.Length; i++)
-            {
-                string header = this.Headers[i].Trim();
-                string value = values[i].Trim();
-
-                if (string.IsNullOrEmpty(value))
-                    continue;
-
-                columns[i] = value;
-            }
-
-            this.Rows.Add(new Row(this.Headers, columns));
+            columns[i] = value;
         }
+
+        this.Rows.Add(new Row(this.Headers, columns));
     }
 
     /// A safe split method that handles cases where the separator might be inside quotes.
